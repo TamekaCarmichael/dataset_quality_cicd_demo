@@ -1,1 +1,50 @@
+name: Dataset Quality CI
 
+on:
+  push:
+    branches: [Main]
+  pull_request:
+    branches: [Main]
+
+jobs:
+  validate-candidates:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        candidate: [release_candidate_good, release_candidate_bad, release_candidate_fixed]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.candidate }}
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          cd ${{ matrix.candidate }}
+          ruff check .
+
+      - name: Type check
+        run: |
+          cd ${{ matrix.candidate }}
+          mypy src
+
+      - name: Run dataset quality tests
+        run: |
+          cd ${{ matrix.candidate }}
+          PYTHONPATH=. pytest
+
+      - name: Smoke test validator
+        run: |
+          cd ${{ matrix.candidate }}
+          python src/dataset_validator.py
